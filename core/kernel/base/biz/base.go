@@ -14,7 +14,7 @@ type Base struct {
 
 func New(
 	eventHub event.Hub,
-	backgroundRoutine *task.BackgroundRoutine,
+	backgroundRoutine task.BackgroundRoutine,
 ) *Base {
 	ptr := &Base{
 		Base: biz.New(common.BaseModule, eventHub, backgroundRoutine),

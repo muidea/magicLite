@@ -1,26 +1,17 @@
 package core
 
 import (
-	"github.com/muidea/magicCommon/event"
-	"github.com/muidea/magicCommon/session"
-	"github.com/muidea/magicCommon/task"
+	"github.com/muidea/magicCommon/module"
 	engine "github.com/muidea/magicEngine"
 
 	_ "github.com/muidea/magicLite/core/kernel/base"
-	"github.com/muidea/magicLite/module"
 )
 
 // New 新建Core
-func New(endpointName string) (ret *Core, err error) {
-	sessionRegistry := session.CreateRegistry(nil)
-	eventHub := event.NewHub()
-	backgroundRoutine := task.NewBackgroundRoutine()
-
+func New(endpointName, listenPort string) (ret *Core, err error) {
 	core := &Core{
-		endpointName:      endpointName,
-		sessionRegistry:   sessionRegistry,
-		eventHub:          eventHub,
-		backgroundRoutine: backgroundRoutine,
+		endpointName: endpointName,
+		listenPort:   listenPort,
 	}
 
 	ret = core
@@ -29,26 +20,37 @@ func New(endpointName string) (ret *Core, err error) {
 
 // Core Core对象
 type Core struct {
-	endpointName      string
-	sessionRegistry   session.Registry
-	eventHub          event.Hub
-	backgroundRoutine *task.BackgroundRoutine
+	endpointName string
+	listenPort   string
+
+	httpServer engine.HTTPServer
+}
+
+func (s *Core) Name() string {
+	return s.endpointName
 }
 
 // Startup 启动
-func (s *Core) Startup(router engine.Router) {
-	moduleList := module.GetList()
-	for _, val := range moduleList {
-		val.BindBackgroundRoutine(s.backgroundRoutine)
-		val.BindEventHub(s.eventHub)
-		val.BindRegistry(s.sessionRegistry)
-	}
+func (s *Core) Startup() {
+	router := engine.NewRouter()
 
-	for _, val := range moduleList {
-		val.Startup(s.endpointName, router)
+	s.httpServer = engine.NewHTTPServer(s.listenPort)
+	s.httpServer.Bind(router)
+
+	modules := module.GetModules()
+	for _, val := range modules {
+		val.Setup(s.endpointName)
 	}
 }
 
-// Teardown 销毁
-func (s *Core) Teardown() {
+func (s *Core) Run() {
+	s.httpServer.Run()
+}
+
+// Shutdown 销毁
+func (s *Core) Shutdown() {
+	modules := module.GetModules()
+	for _, val := range modules {
+		val.Teardown()
+	}
 }
