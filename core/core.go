@@ -1,7 +1,9 @@
 package core
 
 import (
+	"github.com/muidea/magicCommon/event"
 	"github.com/muidea/magicCommon/module"
+	"github.com/muidea/magicCommon/task"
 	engine "github.com/muidea/magicEngine"
 
 	_ "github.com/muidea/magicLite/core/kernel/base"
@@ -26,12 +28,10 @@ type Core struct {
 	httpServer engine.HTTPServer
 }
 
-func (s *Core) Name() string {
-	return s.endpointName
-}
-
 // Startup 启动
-func (s *Core) Startup() {
+func (s *Core) Startup(
+	eventHub event.Hub,
+	backgroundRoutine task.BackgroundRoutine) {
 	router := engine.NewRouter()
 
 	s.httpServer = engine.NewHTTPServer(s.listenPort)
@@ -39,7 +39,7 @@ func (s *Core) Startup() {
 
 	modules := module.GetModules()
 	for _, val := range modules {
-		val.Setup(s.endpointName)
+		val.Setup(s.endpointName, eventHub, backgroundRoutine)
 	}
 }
 
