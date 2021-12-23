@@ -46,8 +46,7 @@ func main() {
 		return
 	}
 
-	app := application.GetApp()
-	app.Startup(core)
-	app.Run()
-	app.Shutdown()
+	application.Startup(core)
+	application.Run()
+	application.Shutdown()
 }

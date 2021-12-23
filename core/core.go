@@ -25,21 +25,24 @@ type Core struct {
 	endpointName string
 	listenPort   string
 
-	httpServer engine.HTTPServer
+	routeRegistry engine.Router
+	httpServer    engine.HTTPServer
 }
 
 // Startup 启动
 func (s *Core) Startup(
 	eventHub event.Hub,
 	backgroundRoutine task.BackgroundRoutine) {
-	router := engine.NewRouter()
-
+	s.routeRegistry = engine.NewRouter()
 	s.httpServer = engine.NewHTTPServer(s.listenPort)
-	s.httpServer.Bind(router)
+	s.httpServer.Bind(s.routeRegistry)
 
 	modules := module.GetModules()
 	for _, val := range modules {
-		val.Setup(s.endpointName, eventHub, backgroundRoutine)
+
+		module.BindRegistry(val, s.routeRegistry)
+
+		module.Setup(val, s.endpointName, eventHub, backgroundRoutine)
 	}
 }
 
@@ -51,6 +54,6 @@ func (s *Core) Run() {
 func (s *Core) Shutdown() {
 	modules := module.GetModules()
 	for _, val := range modules {
-		val.Teardown()
+		module.Teardown(val)
 	}
 }
