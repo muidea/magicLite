@@ -39,7 +39,6 @@ func (s *Core) Startup(
 
 	modules := module.GetModules()
 	for _, val := range modules {
-
 		module.BindRegistry(val, s.routeRegistry)
 
 		module.Setup(val, s.endpointName, eventHub, backgroundRoutine)
