@@ -34,6 +34,14 @@ func (s *Base) ID() string {
 	return s.id
 }
 
+func (s *Base) Subscribe(eventID string, observer event.Observer) {
+	s.eventHub.Subscribe(eventID, observer)
+}
+
+func (s *Base) Unsubscribe(eventID string, observer event.Observer) {
+	s.eventHub.Unsubscribe(eventID, observer)
+}
+
 func (s *Base) PostEvent(event event.Event) {
 	s.eventHub.Post(event)
 }
@@ -47,9 +55,9 @@ func (s *Base) CallEvent(event event.Event) event.Result {
 }
 
 func (s *Base) Invoke(funcPtr func()) {
-	task := &invokeTask{funcPtr: funcPtr}
+	ptr := &invokeTask{funcPtr: funcPtr}
 
-	s.backgroundRoutine.Post(task)
+	s.backgroundRoutine.Post(ptr)
 }
 
 func (s *Base) RootDestination() string {
