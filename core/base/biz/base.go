@@ -1,6 +1,8 @@
 package biz
 
 import (
+	"time"
+
 	"github.com/muidea/magicCommon/event"
 	"github.com/muidea/magicCommon/task"
 )
@@ -55,9 +57,19 @@ func (s *Base) CallEvent(event event.Event) event.Result {
 }
 
 func (s *Base) Invoke(funcPtr func()) {
-	ptr := &invokeTask{funcPtr: funcPtr}
+	taskPtr := &invokeTask{funcPtr: funcPtr}
 
-	s.backgroundRoutine.Post(ptr)
+	s.backgroundRoutine.Post(taskPtr)
+}
+
+func (s *Base) Timer(intervalValue time.Duration, offsetValue time.Duration, funcPtr func()) {
+	taskPtr := &invokeTask{funcPtr: funcPtr}
+	s.backgroundRoutine.Timer(taskPtr, intervalValue, offsetValue)
+}
+
+func (s *Base) BroadCast(eid string, header event.Values, val interface{}) {
+	event := event.NewEvent(eid, s.ID(), s.RootDestination(), header, val)
+	s.eventHub.Post(event)
 }
 
 func (s *Base) RootDestination() string {
