@@ -10,7 +10,6 @@ WORKDIR /var/app
 
 ADD magicLite /var/app/magicLite
 ADD bootstrap.sh /var/app/bootstrap.sh
-ADD cfg.json /var/app/config/cfg.json
 
 RUN chmod +x /var/app/magicLite
 RUN chmod +x /var/app/bootstrap.sh
