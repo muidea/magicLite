@@ -1,0 +1,56 @@
+# github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575
+## explicit
+github.com/cihub/seelog
+github.com/cihub/seelog/archive
+github.com/cihub/seelog/archive/gzip
+github.com/cihub/seelog/archive/tar
+github.com/cihub/seelog/archive/zip
+# github.com/go-playground/locales v0.14.0
+github.com/go-playground/locales
+github.com/go-playground/locales/currency
+# github.com/go-playground/universal-translator v0.18.0
+github.com/go-playground/universal-translator
+# github.com/go-playground/validator/v10 v10.10.0
+github.com/go-playground/validator/v10
+# github.com/leodido/go-urn v1.2.1
+github.com/leodido/go-urn
+# github.com/muidea/magicBatis v0.0.0-20220305101904-6c19bd4c2e19
+github.com/muidea/magicBatis/client
+github.com/muidea/magicBatis/common
+# github.com/muidea/magicCas v0.0.0-20220724142803-fc0cb45f5b43
+## explicit
+github.com/muidea/magicCas/common
+github.com/muidea/magicCas/model
+github.com/muidea/magicCas/toolkit
+# github.com/muidea/magicCommon v0.0.0-20220726100553-5cdb3c887a44
+## explicit
+github.com/muidea/magicCommon/application
+github.com/muidea/magicCommon/def
+github.com/muidea/magicCommon/event
+github.com/muidea/magicCommon/foundation/cache
+github.com/muidea/magicCommon/foundation/generator
+github.com/muidea/magicCommon/foundation/net
+github.com/muidea/magicCommon/foundation/util
+github.com/muidea/magicCommon/module
+github.com/muidea/magicCommon/service
+github.com/muidea/magicCommon/session
+github.com/muidea/magicCommon/task
+# github.com/muidea/magicEngine v0.0.0-20211219074645-49a3a434d25e
+## explicit
+github.com/muidea/magicEngine
+# github.com/muidea/magicOrm v0.0.0-20220203084241-59a1fd56a2f3
+github.com/muidea/magicOrm/model
+github.com/muidea/magicOrm/provider
+github.com/muidea/magicOrm/provider/helper
+github.com/muidea/magicOrm/provider/local
+github.com/muidea/magicOrm/provider/remote
+github.com/muidea/magicOrm/util
+# golang.org/x/crypto v0.0.0-20220214200702-86341886e292
+golang.org/x/crypto/sha3
+# golang.org/x/sys v0.0.0-20220227234510-4e6760a101f9
+golang.org/x/sys/cpu
+# golang.org/x/text v0.3.7
+golang.org/x/text/internal/language
+golang.org/x/text/internal/language/compact
+golang.org/x/text/internal/tag
+golang.org/x/text/language
