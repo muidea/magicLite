@@ -1,7 +1,7 @@
 export PATH := $(GOPATH)/bin:$(PATH)
 export GO111MODULE=on
 LDFLAGS := -X 'main.time=$(date -u --rfc-3339=seconds)' -X 'main.git=$(git log --pretty=format:"%h" -1)'
-PROJECT=magicCas
+PROJECT=magicLite
 
 all: fmt build
 
