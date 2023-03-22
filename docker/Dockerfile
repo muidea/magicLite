@@ -1,19 +1,26 @@
+FROM golang:1.19.6 AS building
+
+COPY . /building
+WORKDIR /building
+
+RUN make build
+
 FROM alpine:3.13.4
 
+ARG AppName=magicLite
 LABEL Author="rangh"
-LABEL Application="magicLite"
+LABEL Application=$AppName
 
 RUN mkdir -p /var/app
 RUN mkdir -p /var/app/config
 
 WORKDIR /var/app
 
-ADD magicLite /var/app/magicLite
-ADD bootstrap.sh /var/app/bootstrap.sh
+COPY --from=building /building/bin/$AppName /var/app/$AppName
+COPY --from=building /building/docker/bootstrap.sh /var/app/bootstrap.sh
 
-RUN chmod +x /var/app/magicLite
 RUN chmod +x /var/app/bootstrap.sh
 
 ENTRYPOINT [ "/var/app/bootstrap.sh" ]
 
-EXPOSE 8880
+EXPOSE 8080
