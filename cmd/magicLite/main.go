@@ -10,11 +10,11 @@ import (
 
 	"github.com/muidea/magicCommon/application"
 
-	_ "github.com/muidea/magicLite/config"
-	"github.com/muidea/magicLite/core"
+	_ "github.com/muidea/magicLite/internal/config"
+	"github.com/muidea/magicLite/internal/core"
 )
 
-var listenPort = "8080"
+var listenPort = "6080"
 var endpointName = "magicLite"
 
 func initPprofMonitor(listenPort string) error {

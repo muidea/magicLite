@@ -51,6 +51,18 @@ func (s *ValueImpl) Addr() model.Value {
 	return impl
 }
 
+func (s *ValueImpl) IsBasic() bool {
+	if util.IsNil(s.value) {
+		return false
+	}
+
+	trueType := s.value.Type()
+	if s.value.Kind() == reflect.Interface {
+		trueType = s.value.Elem().Type()
+	}
+	return !util.IsStruct(trueType)
+}
+
 // Copy Copy
 func (s *ValueImpl) copy() (ret *ValueImpl) {
 	if !util.IsNil(s.value) {

@@ -1,69 +1,47 @@
 package session
 
 import (
-	"encoding/base64"
-	"encoding/json"
-	"log"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
+	log "github.com/cihub/seelog"
 	"github.com/muidea/magicCommon/foundation/util"
 )
 
+const (
+	hmacSecret = "rangh@foxmail.com"
+)
+
+func getSecret() string {
+	secretVal := os.Getenv("HMAC_SECRET")
+	if secretVal != "" {
+		return secretVal
+	}
+
+	return hmacSecret
+}
+
 // Registry 会话仓库
 type Registry interface {
-	GetRequestInfo(res http.ResponseWriter, req *http.Request) *SessionInfo
 	GetSession(res http.ResponseWriter, req *http.Request) Session
 	CountSession(filter util.Filter) int
-}
-
-// CallBack session CallBack
-type CallBack interface {
-	OnTimeOut(session Session)
-}
-
-var sessionCookieID = "$$session_info"
-
-func init() {
-	sessionCookieID = createUUID()
 }
 
 func createUUID() string {
 	return util.RandomAlphanumeric(32)
 }
 
-func getRequestInfo(req *http.Request) *SessionInfo {
-	sessionInfo := &SessionInfo{}
-	if req != nil {
-		sessionInfo.Decode(req)
-		if sessionInfo.ID == "" || sessionInfo.Token == "" {
-			cookieInfo := &SessionInfo{}
-			cookie, err := req.Cookie(sessionCookieID)
-			if err == nil {
-				valData, valErr := base64.StdEncoding.DecodeString(cookie.Value)
-				if valErr == nil {
-					err = json.Unmarshal(valData, cookieInfo)
-					if err == nil {
-						sessionInfo = cookieInfo
-					}
-				}
-			}
-		}
-	}
-
-	return sessionInfo
-}
-
 type sessionRegistryImpl struct {
-	callBack    CallBack
 	commandChan commandChanImpl
 	sessionLock sync.RWMutex
 }
 
 // CreateRegistry 创建Session仓库
-func CreateRegistry(callback CallBack) Registry {
-	impl := sessionRegistryImpl{callBack: callback}
+func CreateRegistry() Registry {
+	impl := sessionRegistryImpl{}
 	impl.commandChan = make(commandChanImpl)
 	go impl.commandChan.run()
 	go impl.checkTimer()
@@ -71,54 +49,76 @@ func CreateRegistry(callback CallBack) Registry {
 	return &impl
 }
 
-func (sm *sessionRegistryImpl) GetRequestInfo(res http.ResponseWriter, req *http.Request) *SessionInfo {
-	return getRequestInfo(req)
-}
-
 // GetSession 获取Session对象
-func (sm *sessionRegistryImpl) GetSession(res http.ResponseWriter, req *http.Request) Session {
-	var userSession *sessionImpl
-	sessionInfo := getRequestInfo(req)
-
-	sessionID := sessionInfo.ID
-	if sessionID == "" {
-		sessionID = createUUID()
+func (s *sessionRegistryImpl) GetSession(res http.ResponseWriter, req *http.Request) Session {
+	sessionInfo := s.getSession(req)
+	if sessionInfo != nil {
+		return sessionInfo
 	}
 
-	cur := sm.findSession(sessionID)
-	if cur == nil {
-		if sessionInfo.Scope != ShareSession {
-			sessionID = createUUID()
+	return s.createSession(createUUID())
+}
+
+func (s *sessionRegistryImpl) CountSession(filter util.Filter) int {
+	return s.count(filter)
+}
+
+func (s *sessionRegistryImpl) getSession(req *http.Request) *sessionImpl {
+	authorizationValue := req.Header.Get(Authorization)
+	if authorizationValue == "" {
+		return nil
+	}
+
+	var sessionPtr *sessionImpl
+	offset := strings.Index(authorizationValue, " ")
+	if offset == -1 {
+		return nil
+	}
+
+	func() {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Errorf("decode authorization failed, authorizationValue:%s, err:%v", authorizationValue, err)
+			}
+		}()
+
+		s.sessionLock.Lock()
+		defer s.sessionLock.Unlock()
+		if authorizationValue[:offset] == jwtToken {
+			sessionPtr = decodeJWT(authorizationValue[offset+1:])
 		}
-		userSession = sm.createSession(sessionID)
-		sessionInfo.ID = userSession.ID()
-		sessionInfo.Token = ""
-	} else {
-		userSession = cur
+
+		if authorizationValue[:offset] == endpointToken {
+			sessionPtr = decodeEndpoint(authorizationValue[offset+1:])
+		}
+	}()
+
+	if sessionPtr != nil {
+		curSession := s.findSession(sessionPtr.id)
+		if curSession != nil {
+			sessionPtr = curSession
+		}
+
+		s.sessionLock.Lock()
+		defer s.sessionLock.Unlock()
+		sessionPtr.registry = s
+		sessionPtr.context[Authorization] = authorizationValue
 	}
-
-	userSession.SetSessionInfo(sessionInfo)
-
-	return userSession
-}
-
-func (sm *sessionRegistryImpl) CountSession(filter util.Filter) int {
-	return sm.count(filter)
-}
-
-// createSession 新建Session
-func (sm *sessionRegistryImpl) createSession(sessionID string) *sessionImpl {
-	sessionPtr := &sessionImpl{id: sessionID, context: make(map[string]interface{}), registry: sm, callBack: sm.callBack}
-
-	sessionPtr.refresh()
-
-	sessionPtr = sm.commandChan.insert(sessionPtr)
 
 	return sessionPtr
 }
 
-func (sm *sessionRegistryImpl) findSession(sessionID string) *sessionImpl {
-	sessionPtr := sm.commandChan.find(sessionID)
+// createSession 新建Session
+func (s *sessionRegistryImpl) createSession(sessionID string) *sessionImpl {
+	expiryValue := time.Now().Add(DefaultSessionTimeOutValue).UTC().Unix()
+	sessionPtr := &sessionImpl{id: sessionID, context: map[string]interface{}{expiryTime: expiryValue}, observer: map[string]Observer{}, registry: s}
+	sessionPtr = s.commandChan.insert(sessionPtr)
+
+	return sessionPtr
+}
+
+func (s *sessionRegistryImpl) findSession(sessionID string) *sessionImpl {
+	sessionPtr := s.commandChan.find(sessionID)
 	if sessionPtr != nil {
 		return sessionPtr
 	}
@@ -127,39 +127,38 @@ func (sm *sessionRegistryImpl) findSession(sessionID string) *sessionImpl {
 }
 
 // UpdateSession 更新Session
-func (sm *sessionRegistryImpl) updateSession(session *sessionImpl) bool {
-
-	return sm.commandChan.update(session)
+func (s *sessionRegistryImpl) updateSession(session *sessionImpl) bool {
+	return s.commandChan.update(session)
 }
 
-func (sm *sessionRegistryImpl) checkTimer() {
+func (s *sessionRegistryImpl) checkTimer() {
 	timeOutTimer := time.NewTicker(5 * time.Second)
 	for {
 		select {
 		case <-timeOutTimer.C:
-			sm.commandChan.checkTimeOut()
+			s.commandChan.checkTimeOut()
 		}
 	}
 }
 
-func (sm *sessionRegistryImpl) insert(session *sessionImpl) *sessionImpl {
-	return sm.commandChan.insert(session)
+func (s *sessionRegistryImpl) insert(session *sessionImpl) *sessionImpl {
+	return s.commandChan.insert(session)
 }
 
-func (sm *sessionRegistryImpl) delete(id string) {
-	sm.commandChan.remove(id)
+func (s *sessionRegistryImpl) delete(id string) {
+	s.commandChan.remove(id)
 }
 
-func (sm *sessionRegistryImpl) find(id string) *sessionImpl {
-	return sm.commandChan.find(id)
+func (s *sessionRegistryImpl) find(id string) *sessionImpl {
+	return s.commandChan.find(id)
 }
 
-func (sm *sessionRegistryImpl) count(filter util.Filter) int {
-	return sm.commandChan.count(filter)
+func (s *sessionRegistryImpl) count(filter util.Filter) int {
+	return s.commandChan.count(filter)
 }
 
-func (sm *sessionRegistryImpl) update(session *sessionImpl) bool {
-	return sm.commandChan.update(session)
+func (s *sessionRegistryImpl) update(session *sessionImpl) bool {
+	return s.commandChan.update(session)
 }
 
 type commandData struct {
@@ -231,7 +230,7 @@ func (right commandChanImpl) run() {
 			session := command.value.(*sessionImpl)
 			curSession, curOK := sessionContextMap[session.id]
 			if !curOK {
-				curSession = &sessionImpl{id: session.id, context: session.context, registry: session.registry, callBack: session.callBack}
+				curSession = &sessionImpl{id: session.id, context: session.context, observer: session.observer, registry: session.registry}
 				sessionContextMap[session.id] = curSession
 			}
 
@@ -244,8 +243,6 @@ func (right commandChanImpl) run() {
 			curSession, curOK := sessionContextMap[session.id]
 			if curOK {
 				curSession.context = session.context
-			} else {
-				log.Printf("illegal session id:%s", session.id)
 			}
 
 			command.result <- curOK
@@ -261,20 +258,22 @@ func (right commandChanImpl) run() {
 				command.result <- nil
 			}
 		case checkTimeOut:
-			removeList := []string{}
+			removeList := make(map[string]*sessionImpl)
 			for k, v := range sessionContextMap {
-				if v.timeOut() {
-					if v.callBack != nil {
-						go v.callBack.OnTimeOut(v)
-					}
-
-					removeList = append(removeList, k)
+				if v.timeout() {
+					removeList[k] = v
 				}
 			}
 
-			for key := range removeList {
-				delete(sessionContextMap, removeList[key])
+			for k, _ := range removeList {
+				delete(sessionContextMap, k)
 			}
+
+			go func() {
+				for _, v := range removeList {
+					v.terminate()
+				}
+			}()
 		case length:
 			filter := command.value.(util.Filter)
 			if filter == nil {
@@ -293,16 +292,8 @@ func (right commandChanImpl) run() {
 		}
 	}
 
-	log.Print("session manager sessionImpl exit")
+	log.Infof("session manager sessionImpl exit")
 }
-
-/*
-func (right commandChanImpl) close() map[string]interface{} {
-	reply := make(chan map[string]interface{})
-	right <- commandData{action: end, data: reply}
-	return <-reply
-}
-*/
 
 func (right commandChanImpl) checkTimeOut() {
 	right <- commandData{action: checkTimeOut}

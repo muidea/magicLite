@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // Filter value filter
@@ -52,15 +53,58 @@ func (s *ContentFilter) Encode(vals url.Values) url.Values {
 func (s *ContentFilter) Get(key string) (val string, ok bool) {
 	if s.ParamItems != nil {
 		val, ok = s.ParamItems.Items[key]
+		val = strings.Trim(val, "\"")
 		return
 	}
 
 	return
 }
 
-func (s *ContentFilter) Set(key, value string) {
+func (s *ContentFilter) Set(key string, value interface{}) {
 	if s.ParamItems != nil {
-		s.ParamItems.Items[key] = value
+		s.ParamItems.Items[key] = MarshalString(value)
+	}
+}
+
+func (s *ContentFilter) Equal(key string, value interface{}) {
+	if s.ParamItems != nil {
+		s.ParamItems.Items[key] = fmt.Sprintf("%v|=", MarshalString(value))
+	}
+}
+
+func (s *ContentFilter) NotEqual(key string, value interface{}) {
+	if s.ParamItems != nil {
+		s.ParamItems.Items[key] = fmt.Sprintf("%v|!=", MarshalString(value))
+	}
+}
+
+func (s *ContentFilter) Below(key string, value interface{}) {
+	if s.ParamItems != nil {
+		s.ParamItems.Items[key] = fmt.Sprintf("%v|<", MarshalString(value))
+	}
+}
+
+func (s *ContentFilter) Above(key string, value interface{}) {
+	if s.ParamItems != nil {
+		s.ParamItems.Items[key] = fmt.Sprintf("%v|>", MarshalString(value))
+	}
+}
+
+func (s *ContentFilter) In(key string, value interface{}) {
+	if s.ParamItems != nil {
+		s.ParamItems.Items[key] = fmt.Sprintf("%v|in", MarshalString(value))
+	}
+}
+
+func (s *ContentFilter) NotIn(key string, value interface{}) {
+	if s.ParamItems != nil {
+		s.ParamItems.Items[key] = fmt.Sprintf("%v|!in", MarshalString(value))
+	}
+}
+
+func (s *ContentFilter) Like(key string, value interface{}) {
+	if s.ParamItems != nil {
+		s.ParamItems.Items[key] = fmt.Sprintf("%v|like", value)
 	}
 }
 
@@ -95,4 +139,213 @@ func (s *ParamItems) Encode(vals url.Values) url.Values {
 	}
 
 	return vals
+}
+
+func (s *ParamItems) IsEqual(key string) bool {
+	val, ok := s.Items[key]
+	if !ok {
+		return false
+	}
+
+	idx := strings.LastIndex(val, "|")
+	if idx == -1 {
+		return true
+	}
+	return val[idx+1:] == "="
+}
+
+func (s *ParamItems) GetEqual(key string) interface{} {
+	val, ok := s.Items[key]
+	if !ok {
+		return nil
+	}
+	idx := strings.LastIndex(val, "|")
+	if idx == -1 {
+		return UnmarshalString(val)
+	}
+	if val[idx+1:] != "=" {
+		return nil
+	}
+
+	return UnmarshalString(val[:idx])
+}
+
+func (s *ParamItems) IsNotEqual(key string) bool {
+	val, ok := s.Items[key]
+	if !ok {
+		return false
+	}
+
+	idx := strings.LastIndex(val, "|")
+	if idx == -1 {
+		return false
+	}
+	return val[idx+1:] == "!="
+}
+
+func (s *ParamItems) GetNotEqual(key string) interface{} {
+	val, ok := s.Items[key]
+	if !ok {
+		return nil
+	}
+
+	idx := strings.LastIndex(val, "|")
+	if idx == -1 {
+		return nil
+	}
+	if val[idx+1:] != "!=" {
+		return nil
+	}
+
+	return UnmarshalString(val[:idx])
+}
+
+func (s *ParamItems) IsBelow(key string) bool {
+	val, ok := s.Items[key]
+	if !ok {
+		return false
+	}
+
+	idx := strings.LastIndex(val, "|")
+	if idx == -1 {
+		return true
+	}
+	return val[idx+1:] == "<"
+}
+
+func (s *ParamItems) GetBelow(key string) interface{} {
+	val, ok := s.Items[key]
+	if !ok {
+		return nil
+	}
+
+	idx := strings.LastIndex(val, "|")
+	if idx == -1 {
+		return nil
+	}
+	if val[idx+1:] != "<" {
+		return nil
+	}
+
+	return UnmarshalString(val[:idx])
+}
+
+func (s *ParamItems) IsAbove(key string) bool {
+	val, ok := s.Items[key]
+	if !ok {
+		return false
+	}
+
+	idx := strings.LastIndex(val, "|")
+	if idx == -1 {
+		return false
+	}
+	return val[idx+1:] == ">"
+}
+
+func (s *ParamItems) GetAbove(key string) interface{} {
+	val, ok := s.Items[key]
+	if !ok {
+		return nil
+	}
+
+	idx := strings.LastIndex(val, "|")
+	if idx == -1 {
+		return nil
+	}
+	if val[idx+1:] != ">" {
+		return nil
+	}
+
+	return UnmarshalString(val[:idx])
+}
+
+func (s *ParamItems) IsIn(key string) bool {
+	val, ok := s.Items[key]
+	if !ok {
+		return false
+	}
+
+	idx := strings.LastIndex(val, "|")
+	if idx == -1 {
+		return true
+	}
+	return val[idx+1:] == "in"
+}
+
+func (s *ParamItems) GetIn(key string) interface{} {
+	val, ok := s.Items[key]
+	if !ok {
+		return nil
+	}
+
+	idx := strings.LastIndex(val, "|")
+	if idx == -1 {
+		return nil
+	}
+	if val[idx+1:] != "in" {
+		return nil
+	}
+
+	return UnmarshalString(val[:idx])
+}
+
+func (s *ParamItems) IsNotIn(key string) bool {
+	val, ok := s.Items[key]
+	if !ok {
+		return false
+	}
+
+	idx := strings.LastIndex(val, "|")
+	if idx == -1 {
+		return false
+	}
+	return val[idx+1:] == "!in"
+}
+
+func (s *ParamItems) GetNotIn(key string) interface{} {
+	val, ok := s.Items[key]
+	if !ok {
+		return nil
+	}
+
+	idx := strings.LastIndex(val, "|")
+	if idx == -1 {
+		return nil
+	}
+	if val[idx+1:] != "!in" {
+		return nil
+	}
+
+	return UnmarshalString(val[:idx])
+}
+
+func (s *ParamItems) IsLike(key string) bool {
+	val, ok := s.Items[key]
+	if !ok {
+		return false
+	}
+
+	idx := strings.LastIndex(val, "|")
+	if idx == -1 {
+		return false
+	}
+	return val[idx+1:] == "like"
+}
+
+func (s *ParamItems) GetLike(key string) interface{} {
+	val, ok := s.Items[key]
+	if !ok {
+		return nil
+	}
+
+	idx := strings.LastIndex(val, "|")
+	if idx == -1 {
+		return nil
+	}
+	if val[idx+1:] != "like" {
+		return nil
+	}
+
+	return val[:idx]
 }

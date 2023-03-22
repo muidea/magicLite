@@ -1,5 +1,9 @@
 package def
 
+import "fmt"
+
+type ErrorCode int
+
 const (
 	// Success 成功
 	Success = iota
@@ -21,16 +25,32 @@ const (
 // ErrorCode 错误码
 // Reason 错误信息
 type Result struct {
-	ErrorCode int    `json:"errorCode"`
-	Reason    string `json:"reason"`
+	ErrorCode ErrorCode `json:"errorCode"`
+	Reason    string    `json:"reason"`
 }
 
 // Success 成功
-func (result *Result) Success() bool {
-	return result.ErrorCode == Success
+func (s *Result) Success() bool {
+	return s.ErrorCode == Success
 }
 
 // Fail 失败
-func (result *Result) Fail() bool {
-	return result.ErrorCode != Success
+func (s *Result) Fail() bool {
+	return s.ErrorCode != Success
+}
+
+func (s *Result) Error() error {
+	if s.ErrorCode == Success {
+		return nil
+	}
+
+	return fmt.Errorf("errorCode:%v, reason:%v", s.ErrorCode, s.Reason)
+}
+
+func GetError(errCode ErrorCode, reason string) error {
+	if errCode == Success {
+		return nil
+	}
+
+	return fmt.Errorf("errorCode:%v, reason:%v", errCode, reason)
 }

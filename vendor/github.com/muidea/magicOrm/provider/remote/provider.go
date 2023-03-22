@@ -149,14 +149,6 @@ func SetModelValue(vModel model.Model, vVal model.Value) (ret model.Model, err e
 
 func ElemDependValue(vVal model.Value) (ret []model.Value, err error) {
 	rVal := vVal.Get()
-	if rVal.Kind() == reflect.Slice {
-		for idx := 0; idx < rVal.Len(); idx++ {
-			ret = append(ret, newValue(rVal.Index(idx)))
-		}
-
-		return
-	}
-
 	if rVal.Type().String() == reflect.TypeOf(_declareObjectSliceValue).String() {
 		objectsVal := rVal.FieldByName("Values")
 		if !util.IsNil(objectsVal) {
@@ -174,7 +166,24 @@ func ElemDependValue(vVal model.Value) (ret []model.Value, err error) {
 			ret = append(ret, vVal)
 			return
 		}
+	}
 
+	tVal, tErr := util.GetTypeEnum(rVal.Type())
+	if tErr != nil {
+		err = tErr
+		return
+	}
+
+	if util.IsSliceType(tVal) {
+		for idx := 0; idx < rVal.Len(); idx++ {
+			ret = append(ret, newValue(rVal.Index(idx)))
+		}
+		return
+	}
+
+	if util.IsBasicType(tVal) {
+		ret = append(ret, vVal)
+		return
 	}
 
 	err = fmt.Errorf("illegal remote slice value, type:%s", rVal.Type().String())
@@ -209,6 +218,13 @@ func encodeModel(vVal model.Value, vType model.Type, mCache model.Cache, helper 
 	tModel := mCache.Fetch(vType.GetName())
 	if tModel == nil {
 		err = fmt.Errorf("illegal value type,type:%s", vType.GetName())
+		return
+	}
+
+	if vVal.IsBasic() {
+		pkField := tModel.GetPrimaryField()
+		vType := pkField.GetType()
+		ret, err = helper.Encode(vVal, vType)
 		return
 	}
 
