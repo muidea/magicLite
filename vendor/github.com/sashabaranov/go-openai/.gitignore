@@ -12,9 +12,8 @@
 *.out
 
 # Dependency directories (remove the comment below to include it)
-!/vendor
+# vendor/
 
-magicLite
-
-!/cmd/magicLite/
-!/cmd/magicLite/main.go
+# Auth token for tests
+.openai-token
+.idea

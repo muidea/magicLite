@@ -20,5 +20,14 @@ func init() {
 	configItem = cfg
 }
 
+func GetAuthToken() []string {
+	if configItem == nil {
+		return []string{"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"}
+	}
+
+	return configItem.AuthToken
+}
+
 type CfgItem struct {
+	AuthToken []string `json:"authToken"`
 }

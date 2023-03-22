@@ -58,6 +58,14 @@ func (s *GPT) queryMessage(ctx context.Context, res http.ResponseWriter, req *ht
 			break
 		}
 
+		msgData, msgErr := s.bizPtr.QueryMessage(param.Message)
+		if msgErr != nil {
+			result.ErrorCode = commonDef.Failed
+			result.Reason = msgErr.Error()
+			break
+		}
+
+		result.Data = msgData
 		break
 	}
 

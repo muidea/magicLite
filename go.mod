@@ -7,6 +7,7 @@ require (
 	github.com/muidea/magicCas v1.2.0
 	github.com/muidea/magicCommon v1.2.1
 	github.com/muidea/magicEngine v1.2.0
+	github.com/sashabaranov/go-openai v1.5.4
 )
 
 require (
